@@ -1,9 +1,11 @@
 import json
 from typing import Any
+from typing import Optional
 
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ImproperlyConfigured
+from django.http import HttpRequest
 from django_cas_ng.backends import CASBackend
 from josepy.jws import JWS
 from mozilla_django_oidc.auth import OIDCAuthenticationBackend
@@ -25,7 +27,25 @@ class CustomCASBackend(CASBackend):
 class CustomOIDCBackend(OIDCAuthenticationBackend):
     """Provide OpenID Connect authentication."""
 
-    def get_settings(self, attr, *args):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        # Store additional settings as instance attributes.
+        self.OIDC_OP_SET_ROLES_FROM_CLAIMS = getattr(
+            settings, "OIDC_OP_SET_ROLES_FROM_CLAIMS", False
+        )
+
+        self.OIDC_OP_ROLE_CLAIM_PATH = getattr(
+            settings, "OIDC_OP_ROLE_CLAIM_PATH", "realm_access.roles"
+        )
+
+        self.OIDC_ACCESS_ATTRIBUTE_MAP = getattr(
+            settings, "OIDC_ACCESS_ATTRIBUTE_MAP", settings.DEFAULT_OIDC_CLAIMS
+        )
+
+        # Extract valid role keys from USER_ROLES.
+        self.VALID_ROLES = {role[0] for role in roles.USER_ROLES}
+
+    def get_settings(self, attr: str, *args: Any) -> Any:
         if attr in [
             "OIDC_RP_CLIENT_ID",
             "OIDC_RP_CLIENT_SECRET",
@@ -34,6 +54,9 @@ class CustomOIDCBackend(OIDCAuthenticationBackend):
             "OIDC_OP_USER_ENDPOINT",
             "OIDC_OP_JWKS_ENDPOINT",
             "OIDC_OP_LOGOUT_ENDPOINT",
+            "OIDC_OP_SET_ROLES_FROM_CLAIMS",
+            "OIDC_OP_ROLE_CLAIM_PATH",
+            "OIDC_ACCESS_ATTRIBUTE_MAP",
         ]:
             # Retrieve the request object stored in the instance.
             request = getattr(self, "request", None)
@@ -55,13 +78,18 @@ class CustomOIDCBackend(OIDCAuthenticationBackend):
         # not in the list, call the superclass's get_settings method.
         return OIDCAuthenticationBackend.get_settings(attr, *args)
 
-    def authenticate(self, request, **kwargs):
+    def authenticate(self, request: HttpRequest, **kwargs: Any) -> Any:
         self.request = request
         self.OIDC_RP_CLIENT_ID = self.get_settings("OIDC_RP_CLIENT_ID")
         self.OIDC_RP_CLIENT_SECRET = self.get_settings("OIDC_RP_CLIENT_SECRET")
         self.OIDC_OP_TOKEN_ENDPOINT = self.get_settings("OIDC_OP_TOKEN_ENDPOINT")
         self.OIDC_OP_USER_ENDPOINT = self.get_settings("OIDC_OP_USER_ENDPOINT")
         self.OIDC_OP_JWKS_ENDPOINT = self.get_settings("OIDC_OP_JWKS_ENDPOINT")
+        self.OIDC_OP_SET_ROLES_FROM_CLAIMS = self.get_settings(
+            "OIDC_OP_SET_ROLES_FROM_CLAIMS"
+        )
+        self.OIDC_OP_ROLE_CLAIM_PATH = self.get_settings("OIDC_OP_ROLE_CLAIM_PATH")
+        self.OIDC_ACCESS_ATTRIBUTE_MAP = self.get_settings("OIDC_ACCESS_ATTRIBUTE_MAP")
 
         return super().authenticate(request, **kwargs)
 
@@ -84,7 +112,7 @@ class CustomOIDCBackend(OIDCAuthenticationBackend):
 
         info: dict[str, Any] = {}
 
-        for oidc_attr, user_attr in settings.OIDC_ACCESS_ATTRIBUTE_MAP.items():
+        for oidc_attr, user_attr in self.OIDC_ACCESS_ATTRIBUTE_MAP.items():
             if oidc_attr in access_info:
                 info.setdefault(user_attr, access_info[oidc_attr])
 
@@ -94,18 +122,59 @@ class CustomOIDCBackend(OIDCAuthenticationBackend):
 
         return info
 
-    def create_user(self, user_info: dict[str, Any]) -> User:
+    def create_user(self, user_info: dict[str, Any]) -> Optional[User]:
+        """Create a new user when authentication was successful."""
+        role = self.get_user_role(user_info)
+        if role is None:
+            return None
+
         user = super().create_user(user_info)
         for attr, value in user_info.items():
             setattr(user, attr, value)
-        self.set_user_role(user)
+        roles.set_user_role(user, role)
         return user
 
-    def update_user(self, user: User, user_info: dict[str, Any]) -> User:
-        self.set_user_role(user)
+    def update_user(self, user: User, user_info: dict[str, Any]) -> Optional[User]:
+        """
+        Updates the user's role only if the setting allows roles to be set from OIDC claims.
+        If the setting is False roles are being managed by an admin so do not update the role.
+        """
+        if self.OIDC_OP_SET_ROLES_FROM_CLAIMS:
+            role = self.get_user_role(user_info)
+            if role is None:
+                return None
+            roles.set_user_role(user, role)
         return user
 
-    def set_user_role(self, user: User) -> None:
-        # TODO: use user claims accessible via user's authentication tokens.
-        role = roles.promoted_role(roles.USER_ROLE_READER)
-        user.set_role(role)
+    def get_user_role(self, user_info: dict[str, Any]) -> Optional[str]:
+        """
+        Returns the highest-permission valid role found in the OIDC token claims.
+        Returns the default user role if the setting is False.
+        Returns None if no valid roles are found.
+        """
+        if not self.OIDC_OP_SET_ROLES_FROM_CLAIMS:
+            return roles.promoted_role(settings.DEFAULT_USER_ROLE)
+
+        claim_path = self.OIDC_OP_ROLE_CLAIM_PATH.split(".")
+        role_claims = user_info
+
+        # Traverse the claim path to find the role claims.
+        for key in claim_path:
+            if isinstance(role_claims, dict):
+                role_claims = role_claims.get(key, {})
+            else:
+                return None  # Malformed structure.
+
+        # If the claim contains a single role, convert to list.
+        if isinstance(role_claims, str):
+            role_claims = [role_claims]
+
+        if not isinstance(role_claims, list):
+            return None  # Neither a string nor a list of roles.
+
+        # Iterate over ordered USER_ROLES and return the first match.
+        for role_key, _ in roles.USER_ROLES:
+            if role_key in role_claims:
+                return roles.promoted_role(role_key)
+
+        return None  # No match found.

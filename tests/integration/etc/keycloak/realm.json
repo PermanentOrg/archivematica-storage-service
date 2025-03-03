@@ -11,6 +11,18 @@
     "attributes": {
       "adminEventsExpiration": "900"
     },
+    "roles": {
+      "realm": [
+        {
+          "name": "admin",
+          "description": "Administrator role"
+        },
+        {
+          "name": "reader",
+          "description": "Reader role"
+        }
+      ]
+    },
     "clients": [
       {
         "id": "am-storage-service",
@@ -49,6 +61,9 @@
             "type": "password",
             "value": "demo"
           }
+        ],
+        "realmRoles": [
+          "reader"
         ]
       }
     ]
@@ -64,6 +79,18 @@
     "adminEventsDetailsEnabled": true,
     "attributes": {
       "adminEventsExpiration": "900"
+    },
+    "roles": {
+      "realm": [
+        {
+          "name": "admin",
+          "description": "Administrator role"
+        },
+        {
+          "name": "reader",
+          "description": "Reader role"
+        }
+      ]
     },
     "clients": [
       {
@@ -90,10 +117,10 @@
     ],
     "users": [
       {
-        "id": "support",
-        "email": "support@example.com",
-        "username": "support",
-        "firstName": "Support",
+        "id": "support-admin",
+        "email": "supportadmin@example.com",
+        "username": "supportadmin",
+        "firstName": "SupportAdmin",
         "lastName": "User",
         "enabled": true,
         "emailVerified": true,
@@ -103,6 +130,28 @@
             "type": "password",
             "value": "support"
           }
+        ],
+        "realmRoles": [
+          "admin"
+        ]
+      },
+      {
+        "id": "support-reader",
+        "email": "supportreader@example.com",
+        "username": "supportreader",
+        "firstName": "SupportReader",
+        "lastName": "User",
+        "enabled": true,
+        "emailVerified": true,
+        "credentials": [
+          {
+            "temporary": false,
+            "type": "password",
+            "value": "support"
+          }
+        ],
+        "realmRoles": [
+          "reader"
         ]
       }
     ]

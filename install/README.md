@@ -579,6 +579,22 @@ If `SS_OIDC_AUTHENTICATION` is false, none of the other ones are used.
   - **Type:** `string`
   - **Default:** `''`
 
+- **`OIDC_OP_SET_ROLES_FROM_CLAIMS`**:
+  - **Description:** Set user roles from OIDC token claims
+  - **Type:** `boolean`
+  - **Default:** `False`
+
+- **`OIDC_OP_ROLE_CLAIM_PATH`**:
+  - **Description:** Set OIDC token path for extracting role info
+  - **Type:** `string`
+  - **Default:** `'realm_access.roles'`
+
+- **`OIDC_ACCESS_ATTRIBUTE_MAP`**
+  - **Description:** Set OIDC token details to extract. This string should be
+    JSON-decodable.
+  - **Type:** `string`
+  - **Default:** `{"given_name": "first_name", "family_name": "last_name"}`
+
 - **`OIDC_RP_SIGN_ALGO`**:
   - **Description:** Algorithm used by the ID provider to sign ID tokens
   - **Type:** `string`

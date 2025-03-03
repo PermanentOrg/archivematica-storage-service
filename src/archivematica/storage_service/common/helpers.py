@@ -1,6 +1,8 @@
+import json
 from collections.abc import Iterable
 from os import environ
 from typing import Any
+from typing import Union
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -18,9 +20,13 @@ def is_true(env_str: str) -> bool:
     return env_str.lower() in ["true", "yes", "on", "1"]
 
 
+ProviderConfig = dict[str, Union[str, bool]]
+
+
 def get_oidc_secondary_providers(
     oidc_secondary_provider_names: Iterable[str],
-) -> dict[str, dict[str, str]]:
+    default_oidc_claims: dict[str, str],
+) -> dict[str, ProviderConfig]:
     providers = {}
 
     for provider_name in oidc_secondary_provider_names:
@@ -34,9 +40,24 @@ def get_oidc_secondary_providers(
         user_endpoint = environ.get(f"OIDC_OP_USER_ENDPOINT_{provider_name}", "")
         jwks_endpoint = environ.get(f"OIDC_OP_JWKS_ENDPOINT_{provider_name}", "")
         logout_endpoint = environ.get(f"OIDC_OP_LOGOUT_ENDPOINT_{provider_name}", "")
+        set_roles_from_claims = is_true(
+            environ.get(f"OIDC_OP_SET_ROLES_FROM_CLAIMS_{provider_name}", "")
+        )
+        role_claim_path = environ.get(
+            f"OIDC_OP_ROLE_CLAIM_PATH_{provider_name}", "realm_access.roles"
+        )
+        try:
+            access_attribute_map = json.loads(
+                environ.get(
+                    f"OIDC_ACCESS_ATTRIBUTE_MAP_{provider_name}",
+                    json.dumps(default_oidc_claims),
+                )
+            )
+        except json.JSONDecodeError:
+            access_attribute_map = default_oidc_claims
 
         if client_id and client_secret:
-            providers[provider_name] = {
+            provider_config: ProviderConfig = {
                 "OIDC_RP_CLIENT_ID": client_id,
                 "OIDC_RP_CLIENT_SECRET": client_secret,
                 "OIDC_OP_AUTHORIZATION_ENDPOINT": authorization_endpoint,
@@ -44,6 +65,10 @@ def get_oidc_secondary_providers(
                 "OIDC_OP_USER_ENDPOINT": user_endpoint,
                 "OIDC_OP_JWKS_ENDPOINT": jwks_endpoint,
                 "OIDC_OP_LOGOUT_ENDPOINT": logout_endpoint,
+                "OIDC_OP_SET_ROLES_FROM_CLAIMS": set_roles_from_claims,
+                "OIDC_OP_ROLE_CLAIM_PATH": role_claim_path,
+                "OIDC_ACCESS_ATTRIBUTE_MAP": access_attribute_map,
             }
+            providers[provider_name] = provider_config
 
     return providers

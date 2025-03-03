@@ -10,6 +10,10 @@ from archivematica.storage_service.common.backends import CustomOIDCBackend
 def settings(
     settings: pytest_django.fixtures.SettingsWrapper,
 ) -> pytest_django.fixtures.SettingsWrapper:
+    settings.DEFAULT_OIDC_CLAIMS = {
+        "given_name": "first_name",
+        "family_name": "last_name",
+    }
     settings.OIDC_OP_TOKEN_ENDPOINT = "https://example.com/token"
     settings.OIDC_OP_USER_ENDPOINT = "https://example.com/user"
     settings.OIDC_RP_CLIENT_ID = "rp_client_id"
@@ -18,6 +22,8 @@ def settings(
         "given_name": "first_name",
         "family_name": "last_name",
     }
+    settings.OIDC_OP_SET_ROLES_FROM_CLAIMS = False
+    settings.OIDC_OP_ROLE_CLAIM_PATH = "realm_access.roles"
     settings.OIDC_ID_ATTRIBUTE_MAP = {"email": "email"}
     settings.OIDC_USERNAME_ALGO = lambda email: email
 
@@ -25,7 +31,9 @@ def settings(
 
 
 @pytest.mark.django_db
-def test_create_user(settings: pytest_django.fixtures.SettingsWrapper) -> None:
+def test_create_user_set_roles_from_default_role(
+    settings: pytest_django.fixtures.SettingsWrapper,
+) -> None:
     backend = CustomOIDCBackend()
 
     user = backend.create_user(
@@ -41,8 +49,191 @@ def test_create_user(settings: pytest_django.fixtures.SettingsWrapper) -> None:
 
 
 @pytest.mark.django_db
+def test_create_user_set_role_from_claim(
+    settings: pytest_django.fixtures.SettingsWrapper,
+) -> None:
+    settings.OIDC_OP_SET_ROLES_FROM_CLAIMS = True
+    settings.OIDC_OP_ROLE_CLAIM_PATH = "realm_access.roles"
+    settings.OIDC_ACCESS_ATTRIBUTE_MAP = {
+        "given_name": "first_name",
+        "family_name": "last_name",
+        "realm_access": "realm_access",
+    }
+    backend = CustomOIDCBackend()
+
+    user = backend.create_user(
+        {
+            "email": "test@example.com",
+            "first_name": "Test",
+            "last_name": "User",
+            "realm_access": {"roles": ["manager"]},
+        }
+    )
+
+    user.refresh_from_db()
+    assert user.first_name == "Test"
+    assert user.last_name == "User"
+    assert user.email == "test@example.com"
+    assert user.username == "test@example.com"
+    assert user.get_role() == roles.USER_ROLE_MANAGER
+
+
+@pytest.mark.django_db
+def test_create_user_role_from_claims(
+    settings: pytest_django.fixtures.SettingsWrapper,
+) -> None:
+    """
+    The role given to a new user is based on token contents.
+
+    In this test, we're ensuring that the highest-permission valid role
+    found in the OIDC token claims is assigned.
+    """
+    settings.OIDC_OP_SET_ROLES_FROM_CLAIMS = True
+    settings.OIDC_OP_ROLE_CLAIM_PATH = "realm_access.roles"
+    settings.OIDC_ACCESS_ATTRIBUTE_MAP = {
+        "given_name": "first_name",
+        "family_name": "last_name",
+        "realm_access": "realm_access",
+    }
+    backend = CustomOIDCBackend()
+
+    user = backend.create_user(
+        {
+            "email": "test@example.com",
+            "first_name": "Test",
+            "last_name": "User",
+            "realm_access": {"roles": ["admin", "editor"]},
+        }
+    )
+
+    user.refresh_from_db()
+    assert user.first_name == "Test"
+    assert user.last_name == "User"
+    assert user.email == "test@example.com"
+    assert user.username == "test@example.com"
+    assert user.get_role() == roles.USER_ROLE_ADMIN
+
+
+@pytest.mark.django_db
+def test_create_user_role_from_claims_reverese_token_role_order(
+    settings: pytest_django.fixtures.SettingsWrapper,
+) -> None:
+    """
+    The role given to a new user is based on token contents.
+
+    In this test, we're ensuring that the highest-permission valid role
+    found in the OIDC token claims is assigned.
+    """
+    settings.OIDC_OP_SET_ROLES_FROM_CLAIMS = True
+    settings.OIDC_OP_ROLE_CLAIM_PATH = "realm_access.roles"
+    settings.OIDC_ACCESS_ATTRIBUTE_MAP = {
+        "given_name": "first_name",
+        "family_name": "last_name",
+        "realm_access": "realm_access",
+    }
+    backend = CustomOIDCBackend()
+
+    user = backend.create_user(
+        {
+            "email": "test@example.com",
+            "first_name": "Test",
+            "last_name": "User",
+            "realm_access": {"roles": ["editor", "admin"]},
+        }
+    )
+
+    user.refresh_from_db()
+    assert user.first_name == "Test"
+    assert user.last_name == "User"
+    assert user.email == "test@example.com"
+    assert user.username == "test@example.com"
+    assert user.get_role() == roles.USER_ROLE_ADMIN
+
+
+@pytest.mark.django_db
+def test_create_user_role_from_claims_alt_path(
+    settings: pytest_django.fixtures.SettingsWrapper,
+) -> None:
+    settings.OIDC_OP_SET_ROLES_FROM_CLAIMS = True
+    settings.OIDC_OP_ROLE_CLAIM_PATH = "custom_claims.user_roles"
+    settings.OIDC_ACCESS_ATTRIBUTE_MAP = {
+        "given_name": "first_name",
+        "family_name": "last_name",
+        "realm_access": "realm_access",
+    }
+    backend = CustomOIDCBackend()
+
+    user = backend.create_user(
+        {
+            "email": "test@example.com",
+            "first_name": "Test",
+            "last_name": "User",
+            "custom_claims": {"user_roles": ["admin"]},
+        }
+    )
+
+    user.refresh_from_db()
+    assert user.first_name == "Test"
+    assert user.last_name == "User"
+    assert user.email == "test@example.com"
+    assert user.username == "test@example.com"
+    assert user.get_role() == roles.USER_ROLE_ADMIN
+
+
+@pytest.mark.django_db
+def test_create_user_role_from_claims_simple_role(
+    settings: pytest_django.fixtures.SettingsWrapper,
+) -> None:
+    settings.OIDC_OP_SET_ROLES_FROM_CLAIMS = True
+    settings.OIDC_OP_ROLE_CLAIM_PATH = "role"
+    settings.OIDC_ACCESS_ATTRIBUTE_MAP = {
+        "given_name": "first_name",
+        "family_name": "last_name",
+        "realm_access": "realm_access",
+    }
+    backend = CustomOIDCBackend()
+
+    user = backend.create_user(
+        {
+            "email": "test@example.com",
+            "first_name": "Test",
+            "last_name": "User",
+            "role": "admin",
+        }
+    )
+
+    user.refresh_from_db()
+    assert user.first_name == "Test"
+    assert user.last_name == "User"
+    assert user.email == "test@example.com"
+    assert user.username == "test@example.com"
+    assert user.get_role() == roles.USER_ROLE_ADMIN
+
+
+@pytest.mark.django_db
+def test_create_user_failure_no_claims_in_token(
+    settings: pytest_django.fixtures.SettingsWrapper,
+) -> None:
+    settings.OIDC_OP_SET_ROLES_FROM_CLAIMS = True
+    settings.OIDC_OP_ROLE_CLAIM_PATH = "realm_access.roles"
+    settings.OIDC_ACCESS_ATTRIBUTE_MAP = {
+        "given_name": "first_name",
+        "family_name": "last_name",
+        "realm_access": "realm_access",
+    }
+    backend = CustomOIDCBackend()
+
+    user = backend.create_user(
+        {"email": "test@example.com", "first_name": "Test", "last_name": "User"}
+    )
+
+    assert user is None
+
+
+@pytest.mark.django_db
 def test_create_demoted_user(settings: pytest_django.fixtures.SettingsWrapper) -> None:
-    """The role given to a new user is based on ``DEFAULT_USER_ROLE``.
+    """
+    The role given to a new user is based on ``DEFAULT_USER_ROLE``.
 
     In this test, we're ensuring that new users are given the reviewer role
     instead of the default "manager" role.
@@ -75,11 +266,21 @@ def test_get_userinfo(settings: pytest_django.fixtures.SettingsWrapper) -> None:
 
 
 @pytest.mark.django_db
-def test_update_user(settings: pytest_django.fixtures.SettingsWrapper) -> None:
-    """The role given to a new user is based on ``DEFAULT_USER_ROLE``.
-
-    In this test, we're ensuring that updating a user promotes it to a new role.
+def test_update_user_role_from_claims(
+    settings: pytest_django.fixtures.SettingsWrapper,
+) -> None:
     """
+    The role given to a new user is based on ``DEFAULT_USER_ROLE``.
+
+    In this test, we're ensuring that updating a user promotes it to the new role from the token.
+    """
+    settings.OIDC_OP_SET_ROLES_FROM_CLAIMS = True
+    settings.OIDC_OP_ROLE_CLAIM_PATH = "realm_access.roles"
+    settings.OIDC_ACCESS_ATTRIBUTE_MAP = {
+        "given_name": "first_name",
+        "family_name": "last_name",
+        "realm_access": "realm_access",
+    }
 
     user = User.objects.create(
         first_name="Foo", last_name="Bar", username="foobar", email="foobar@example.com"
@@ -91,7 +292,15 @@ def test_update_user(settings: pytest_django.fixtures.SettingsWrapper) -> None:
     # Promote the role in the DEFAULT_USER_ROLE setting.
     settings.DEFAULT_USER_ROLE = roles.USER_ROLE_ADMIN
 
-    backend.update_user(user, {})
+    backend.update_user(
+        user,
+        {
+            "email": "foobar@example.com",
+            "first_name": "Foo",
+            "last_name": "Bar",
+            "realm_access": {"roles": ["admin"]},
+        },
+    )
 
     user.refresh_from_db()
     # User has been promoted to the new role on update.

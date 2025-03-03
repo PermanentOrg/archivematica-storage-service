@@ -15,6 +15,11 @@ USER_ROLE_ADMIN = "admin"
 USER_ROLE_MANAGER = "manager"
 USER_ROLE_REVIEWER = "reviewer"
 USER_ROLE_READER = "reader"
+
+# The roles are ordered from highest to lowest permission in this list. This
+# feature is used in OIDC authentication to determine the highest permission
+# role of a user based on the claims received when multiple roles are
+# received.
 USER_ROLES = [
     # Users with the is_superuser flag enabled.
     (USER_ROLE_ADMIN, _("Administrator")),
