@@ -652,6 +652,11 @@ if OIDC_AUTHENTICATION:
 
     OIDC_RP_SIGN_ALGO = environ.get("OIDC_RP_SIGN_ALGO", "HS256")
 
+    OIDC_USE_PKCE = is_true(environ.get("OIDC_USE_PKCE", "false"))
+    OIDC_PKCE_CODE_CHALLENGE_METHOD = environ.get(
+        "OIDC_PKCE_CODE_CHALLENGE_METHOD", "S256"
+    )
+
     # Username is email address
     def _get_email(email):
         return email
