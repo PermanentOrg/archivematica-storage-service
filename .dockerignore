@@ -3,7 +3,7 @@
 
 # Include
 !/install/**
-!/storage_service/**
+!/src/**
 !/tests/**
 !/pyproject.toml
 !/.markdownlint.jsonc
@@ -16,3 +16,7 @@
 !/README.md
 !/SECURITY.md
 !/requirements*
+
+# Exclude
+**/*~
+**/*.egg-info
