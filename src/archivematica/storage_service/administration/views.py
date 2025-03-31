@@ -10,6 +10,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.translation import get_language
 from django.utils.translation import gettext as _
@@ -81,6 +82,15 @@ def user_list(request):
     return render(request, "administration/user_list.html", locals())
 
 
+def _show_api_key_alert(request, key):
+    messages.success(
+        request,
+        render_to_string(
+            "administration/user_api_key_alert.html", {"key": key}, request
+        ),
+    )
+
+
 def user_edit(request, id):
     edit_allowed = settings.ALLOW_USER_EDITS and (
         request.user.has_perm("auth.change_user") or request.user.id == id
@@ -93,18 +103,22 @@ def user_edit(request, id):
     user_form = settings_forms.UserChangeForm(
         request.POST or None, instance=edit_user, current_user=request.user
     )
-    password_form = SetPasswordForm(data=request.POST or None, user=edit_user)
+    password_form = SetPasswordForm(
+        data=request.POST if "password" in request.POST else None, user=edit_user
+    )
     if "user" in request.POST and user_form.is_valid():
+        if user_form.cleaned_data["regenerate_api_key"]:
+            api_key = ApiKey.objects.get(user=edit_user)
+            api_key.key = api_key.generate_key()
+            api_key.save()
+            _show_api_key_alert(request, api_key.key)
         user_form.save()
         messages.success(request, _("User information saved."))
-        return redirect("administration:user_list")
+        return redirect("administration:user_edit", id=edit_user.pk)
     elif "password" in request.POST and password_form.is_valid():
         password_form.save()
-        api_key = ApiKey.objects.get(user=edit_user)
-        api_key.key = api_key.generate_key()
-        api_key.save()
         messages.success(request, _("Password changed."))
-        return redirect("administration:user_list")
+        return redirect("administration:user_edit", id=edit_user.pk)
     elif "password":
         # Ensure user form information still displays after an invalid
         # password change attempt.
