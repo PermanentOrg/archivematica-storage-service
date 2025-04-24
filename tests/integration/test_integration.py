@@ -207,7 +207,7 @@ class StorageScenario:
         Space.S3: {
             "access_protocol": Space.S3,
             "path": "",
-            "staging_path": "/var/archivematica/sharedDirectory/tmp/rp_staging_path",
+            "staging_path": "/var/archivematica/sharedDirectory/tmp/s3_staging_path",
             "endpoint_url": "http://minio:9000",
             "access_key_id": "minio",
             "secret_access_key": "minio123",
@@ -217,24 +217,36 @@ class StorageScenario:
         Space.RCLONE: {
             "access_protocol": Space.RCLONE,
             "path": "",
-            "staging_path": "/var/archivematica/sharedDirectory/tmp/rp_staging_path",
+            "staging_path": "/var/archivematica/sharedDirectory/tmp/rclone_staging_path",
             "remote_name": "mys3",
             "container": "mybucket",
         },
         Space.NFS: {
             "access_protocol": Space.NFS,
             "path": "/var/archivematica/sharedDirectory/tmp/nfs_mount",
-            "staging_path": "/var/archivematica/sharedDirectory/tmp/rp_staging_path",
+            "staging_path": "/var/archivematica/sharedDirectory/tmp/nfs_staging_path",
             "manually_mounted": False,
             "remote_name": "nfs-server",
             "remote_path": "???",
             "version": "nfs4",
         },
+        Space.LOCAL_FILESYSTEM: {
+            "access_protocol": Space.LOCAL_FILESYSTEM,
+            "path": "/var/archivematica/sharedDirectory/tmp/local_fs",
+            "staging_path": "/var/archivematica/sharedDirectory/tmp/local_fs_staging_path",
+        },
     }
 
-    def __init__(self, src: str, dst: str, pkg: Path, compressed: bool) -> None:
-        self.src = src
-        self.dst = dst
+    def __init__(
+        self,
+        *,
+        storage_protocol: str,
+        replication_protocol: str = "",
+        pkg: Path,
+        compressed: bool,
+    ) -> None:
+        self.storage_protocol = storage_protocol
+        self.replication_protocol = replication_protocol
         self.pkg = pkg
         self.pkg_name = (
             f"foobar-{self.PACKAGE_UUID}{''.join(pkg.suffixes) if compressed else ''}"
@@ -248,7 +260,8 @@ class StorageScenario:
         )
         self.register_pipeline()
         self.register_aip_storage_location()
-        self.register_aip_storage_replicator()
+        if self.replication_protocol:
+            self.register_aip_storage_replicator()
         self.copy_fixture(self.shared_directory_path)
 
     def register_pipeline(self) -> None:
@@ -284,7 +297,9 @@ class StorageScenario:
         """Register AIP Storage location."""
 
         # Add space.
-        resp = self.client.add_space(self._adjust_space_data(self.SPACES[self.src]))
+        resp = self.client.add_space(
+            self._adjust_space_data(self.SPACES[self.storage_protocol])
+        )
         assert resp.status_code == 201
         space = json.loads(resp.content)
 
@@ -354,7 +369,9 @@ class StorageScenario:
         """Register AIP Storage replicator."""
 
         # 1. Add space.
-        resp = self.client.add_space(self._adjust_space_data(self.SPACES[self.dst]))
+        resp = self.client.add_space(
+            self._adjust_space_data(self.SPACES[self.replication_protocol])
+        )
         assert resp.status_code == 201
         space = json.loads(resp.content)
 
@@ -438,19 +455,26 @@ class StorageScenario:
         assert get_size(aip_path) > 1
 
     def assert_stored(self) -> None:
-        # We have two packages, the original and a replica.
+        if self.replication_protocol:
+            # We have two packages, the original and a replica.
+            expected_files_count = 2
+        else:
+            expected_files_count = 1
+
         resp = self.client.get_files()
         files = json.loads(resp.content)
-        assert files["meta"]["total_count"] == 2
-        assert len(files["objects"]) == 2
+        assert files["meta"]["total_count"] == expected_files_count
+        assert len(files["objects"]) == expected_files_count
 
         # Fixity checks.
         resp = self.client.check_fixity(files["objects"][0]["uuid"])
         assert resp.status_code == 200
         assert json.loads(resp.content)["success"] is True
-        resp = self.client.check_fixity(files["objects"][1]["uuid"])
-        assert resp.status_code == 200
-        assert json.loads(resp.content)["success"] is True
+
+        if self.replication_protocol:
+            resp = self.client.check_fixity(files["objects"][1]["uuid"])
+            assert resp.status_code == 200
+            assert json.loads(resp.content)["success"] is True
 
         # We have a pointer file (not for uncompressed AIPs yet).
         if self.compressed:
@@ -462,41 +486,122 @@ class StorageScenario:
     "storage_scenario",
     [
         StorageScenario(
-            src=Space.NFS, dst=Space.S3, pkg=COMPRESSED_PACKAGE, compressed=True
+            storage_protocol=Space.NFS,
+            replication_protocol=Space.S3,
+            pkg=COMPRESSED_PACKAGE,
+            compressed=True,
         ),
         StorageScenario(
-            src=Space.NFS, dst=Space.S3, pkg=UNCOMPRESSED_PACKAGE, compressed=False
+            storage_protocol=Space.NFS,
+            replication_protocol=Space.S3,
+            pkg=UNCOMPRESSED_PACKAGE,
+            compressed=False,
         ),
         StorageScenario(
-            src=Space.NFS, dst=Space.RCLONE, pkg=COMPRESSED_PACKAGE, compressed=True
+            storage_protocol=Space.NFS,
+            replication_protocol=Space.RCLONE,
+            pkg=COMPRESSED_PACKAGE,
+            compressed=True,
         ),
         StorageScenario(
-            src=Space.NFS, dst=Space.RCLONE, pkg=UNCOMPRESSED_PACKAGE, compressed=False
+            storage_protocol=Space.NFS,
+            replication_protocol=Space.RCLONE,
+            pkg=UNCOMPRESSED_PACKAGE,
+            compressed=False,
         ),
         StorageScenario(
-            src=Space.S3, dst=Space.NFS, pkg=COMPRESSED_PACKAGE, compressed=True
+            storage_protocol=Space.S3,
+            replication_protocol=Space.NFS,
+            pkg=COMPRESSED_PACKAGE,
+            compressed=True,
         ),
         StorageScenario(
-            src=Space.S3, dst=Space.NFS, pkg=UNCOMPRESSED_PACKAGE, compressed=False
+            storage_protocol=Space.S3,
+            replication_protocol=Space.NFS,
+            pkg=UNCOMPRESSED_PACKAGE,
+            compressed=False,
         ),
         StorageScenario(
-            src=Space.RCLONE, dst=Space.NFS, pkg=COMPRESSED_PACKAGE, compressed=True
+            storage_protocol=Space.RCLONE,
+            replication_protocol=Space.NFS,
+            pkg=COMPRESSED_PACKAGE,
+            compressed=True,
         ),
         StorageScenario(
-            src=Space.RCLONE, dst=Space.NFS, pkg=UNCOMPRESSED_PACKAGE, compressed=False
+            storage_protocol=Space.RCLONE,
+            replication_protocol=Space.NFS,
+            pkg=UNCOMPRESSED_PACKAGE,
+            compressed=False,
         ),
         StorageScenario(
-            src=Space.S3, dst=Space.S3, pkg=COMPRESSED_PACKAGE, compressed=True
+            storage_protocol=Space.S3,
+            replication_protocol=Space.S3,
+            pkg=COMPRESSED_PACKAGE,
+            compressed=True,
         ),
         StorageScenario(
-            src=Space.S3, dst=Space.S3, pkg=UNCOMPRESSED_PACKAGE, compressed=False
+            storage_protocol=Space.S3,
+            replication_protocol=Space.S3,
+            pkg=UNCOMPRESSED_PACKAGE,
+            compressed=False,
         ),
         StorageScenario(
-            src=Space.RCLONE, dst=Space.RCLONE, pkg=COMPRESSED_PACKAGE, compressed=True
+            storage_protocol=Space.RCLONE,
+            replication_protocol=Space.RCLONE,
+            pkg=COMPRESSED_PACKAGE,
+            compressed=True,
         ),
         StorageScenario(
-            src=Space.RCLONE,
-            dst=Space.RCLONE,
+            storage_protocol=Space.RCLONE,
+            replication_protocol=Space.RCLONE,
+            pkg=UNCOMPRESSED_PACKAGE,
+            compressed=False,
+        ),
+        StorageScenario(
+            storage_protocol=Space.LOCAL_FILESYSTEM,
+            replication_protocol=Space.S3,
+            pkg=COMPRESSED_PACKAGE,
+            compressed=True,
+        ),
+        StorageScenario(
+            storage_protocol=Space.LOCAL_FILESYSTEM,
+            replication_protocol=Space.S3,
+            pkg=UNCOMPRESSED_PACKAGE,
+            compressed=False,
+        ),
+        StorageScenario(
+            storage_protocol=Space.LOCAL_FILESYSTEM,
+            replication_protocol=Space.RCLONE,
+            pkg=COMPRESSED_PACKAGE,
+            compressed=True,
+        ),
+        StorageScenario(
+            storage_protocol=Space.LOCAL_FILESYSTEM,
+            replication_protocol=Space.RCLONE,
+            pkg=UNCOMPRESSED_PACKAGE,
+            compressed=False,
+        ),
+        StorageScenario(
+            storage_protocol=Space.S3,
+            replication_protocol=Space.LOCAL_FILESYSTEM,
+            pkg=COMPRESSED_PACKAGE,
+            compressed=True,
+        ),
+        StorageScenario(
+            storage_protocol=Space.S3,
+            replication_protocol=Space.LOCAL_FILESYSTEM,
+            pkg=UNCOMPRESSED_PACKAGE,
+            compressed=False,
+        ),
+        StorageScenario(
+            storage_protocol=Space.RCLONE,
+            replication_protocol=Space.LOCAL_FILESYSTEM,
+            pkg=COMPRESSED_PACKAGE,
+            compressed=True,
+        ),
+        StorageScenario(
+            storage_protocol=Space.RCLONE,
+            replication_protocol=Space.LOCAL_FILESYSTEM,
             pkg=UNCOMPRESSED_PACKAGE,
             compressed=False,
         ),
@@ -514,6 +619,14 @@ class StorageScenario:
         "s3_to_s3_uncompressed",
         "rclone_to_rclone_compressed",
         "rclone_to_rclone_uncompressed",
+        "local_fs_to_s3_compressed",
+        "local_fs_to_s3_uncompressed",
+        "local_fs_to_rclone_compressed",
+        "local_fs_to_rclone_uncompressed",
+        "s3_to_local_fs_compressed",
+        "s3_to_local_fs_uncompressed",
+        "rclone_to_local_fs_compressed",
+        "rclone_to_local_fs_uncompressed",
     ],
 )
 @pytest.mark.django_db
@@ -641,25 +754,25 @@ class AIPRecoveryScenario(StorageScenario):
     [
         (
             AIPRecoveryScenario(
-                src=Space.NFS, dst=Space.NFS, pkg=COMPRESSED_PACKAGE, compressed=True
+                storage_protocol=Space.NFS, pkg=COMPRESSED_PACKAGE, compressed=True
             ),
             False,
         ),
         (
             AIPRecoveryScenario(
-                src=Space.NFS, dst=Space.NFS, pkg=COMPRESSED_PACKAGE, compressed=True
+                storage_protocol=Space.NFS, pkg=COMPRESSED_PACKAGE, compressed=True
             ),
             True,
         ),
         (
             AIPRecoveryScenario(
-                src=Space.NFS, dst=Space.NFS, pkg=UNCOMPRESSED_PACKAGE, compressed=False
+                storage_protocol=Space.NFS, pkg=UNCOMPRESSED_PACKAGE, compressed=False
             ),
             False,
         ),
         (
             AIPRecoveryScenario(
-                src=Space.NFS, dst=Space.NFS, pkg=UNCOMPRESSED_PACKAGE, compressed=False
+                storage_protocol=Space.NFS, pkg=UNCOMPRESSED_PACKAGE, compressed=False
             ),
             True,
         ),
@@ -700,7 +813,7 @@ def test_aip_recovery_handles_recovery_copy_setup_error(
     # copy in the recovery location directory, creates the recovery request
     # and approves it.
     scenario = AIPRecoveryScenario(
-        src=Space.NFS, dst=Space.NFS, pkg=COMPRESSED_PACKAGE, compressed=True
+        storage_protocol=Space.NFS, pkg=COMPRESSED_PACKAGE, compressed=True
     )
     scenario.init(admin_client, working_directory_path)
     scenario.store_aip()
