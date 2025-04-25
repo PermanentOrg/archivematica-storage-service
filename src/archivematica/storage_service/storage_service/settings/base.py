@@ -591,6 +591,21 @@ if OIDC_AUTHENTICATION:
         "archivematica.storage_service.common.middleware.OidcCaptureQueryParamMiddleware",
     )
 
+    OIDC_USE_SESSION_REFRESH_MIDDLEWARE = is_true(
+        environ.get("SS_OIDC_USE_SESSION_REFRESH_MIDDLEWARE", "false")
+    )
+
+    if OIDC_USE_SESSION_REFRESH_MIDDLEWARE:
+        OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = int(
+            environ.get("SS_OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS", 60 * 15)
+        )
+
+        MIDDLEWARE.insert(
+            MIDDLEWARE.index("django.contrib.auth.middleware.AuthenticationMiddleware")
+            + 1,
+            "mozilla_django_oidc.middleware.SessionRefresh",
+        )
+
     OIDC_ALLOW_LOCAL_AUTHENTICATION = is_true(
         environ.get("SS_OIDC_ALLOW_LOCAL_AUTHENTICATION", "true")
     )
