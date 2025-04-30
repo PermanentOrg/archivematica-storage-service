@@ -83,11 +83,11 @@
     "roles": {
       "realm": [
         {
-          "name": "admin",
+          "name": "admin-secondary",
           "description": "Administrator role"
         },
         {
-          "name": "reader",
+          "name": "reader-secondary",
           "description": "Reader role"
         }
       ]
@@ -132,7 +132,7 @@
           }
         ],
         "realmRoles": [
-          "admin"
+          "admin-secondary"
         ]
       },
       {
@@ -151,7 +151,7 @@
           }
         ],
         "realmRoles": [
-          "reader"
+          "reader-secondary"
         ]
       }
     ]

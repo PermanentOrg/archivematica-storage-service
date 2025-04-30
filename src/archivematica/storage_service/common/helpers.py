@@ -46,6 +46,18 @@ def get_oidc_secondary_providers(
         role_claim_path = environ.get(
             f"OIDC_OP_ROLE_CLAIM_PATH_{provider_name}", "realm_access.roles"
         )
+        role_claim_admin = environ.get(
+            f"OIDC_ROLE_CLAIM_ADMIN_{provider_name}", "admin"
+        )
+        role_claim_manager = environ.get(
+            f"OIDC_ROLE_CLAIM_MANAGER_{provider_name}", "manager"
+        )
+        role_claim_reviewer = environ.get(
+            f"OIDC_ROLE_CLAIM_REVIEWER_{provider_name}", "reviewer"
+        )
+        role_claim_reader = environ.get(
+            f"OIDC_ROLE_CLAIM_READER_{provider_name}", "reader"
+        )
         try:
             access_attribute_map = json.loads(
                 environ.get(
@@ -68,6 +80,10 @@ def get_oidc_secondary_providers(
                 "OIDC_OP_SET_ROLES_FROM_CLAIMS": set_roles_from_claims,
                 "OIDC_OP_ROLE_CLAIM_PATH": role_claim_path,
                 "OIDC_ACCESS_ATTRIBUTE_MAP": access_attribute_map,
+                "OIDC_ROLE_CLAIM_ADMIN": role_claim_admin,
+                "OIDC_ROLE_CLAIM_MANAGER": role_claim_manager,
+                "OIDC_ROLE_CLAIM_REVIEWER": role_claim_reviewer,
+                "OIDC_ROLE_CLAIM_READER": role_claim_reader,
             }
             providers[provider_name] = provider_config
 

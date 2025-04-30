@@ -56,6 +56,10 @@ def test_get_oidc_secondary_providers_ignores_provider_if_client_id_and_secret_a
             },
             "OIDC_RP_CLIENT_ID": "foo-client-id",
             "OIDC_RP_CLIENT_SECRET": "foo-client-secret",
+            "OIDC_ROLE_CLAIM_ADMIN": "admin",
+            "OIDC_ROLE_CLAIM_MANAGER": "manager",
+            "OIDC_ROLE_CLAIM_REVIEWER": "reviewer",
+            "OIDC_ROLE_CLAIM_READER": "reader",
         }
     }
 
@@ -85,6 +89,10 @@ def test_get_oidc_secondary_providers_strips_provider_names(
             },
             "OIDC_RP_CLIENT_ID": "foo-client-id",
             "OIDC_RP_CLIENT_SECRET": "foo-client-secret",
+            "OIDC_ROLE_CLAIM_ADMIN": "admin",
+            "OIDC_ROLE_CLAIM_MANAGER": "manager",
+            "OIDC_ROLE_CLAIM_REVIEWER": "reviewer",
+            "OIDC_ROLE_CLAIM_READER": "reader",
         },
         "BAR": {
             "OIDC_OP_AUTHORIZATION_ENDPOINT": "",
@@ -100,6 +108,10 @@ def test_get_oidc_secondary_providers_strips_provider_names(
             },
             "OIDC_RP_CLIENT_ID": "bar-client-id",
             "OIDC_RP_CLIENT_SECRET": "bar-client-secret",
+            "OIDC_ROLE_CLAIM_ADMIN": "admin",
+            "OIDC_ROLE_CLAIM_MANAGER": "manager",
+            "OIDC_ROLE_CLAIM_REVIEWER": "reviewer",
+            "OIDC_ROLE_CLAIM_READER": "reader",
         },
     }
 
@@ -129,6 +141,10 @@ def test_get_oidc_secondary_providers_capitalizes_provider_names(
             },
             "OIDC_RP_CLIENT_ID": "foo-client-id",
             "OIDC_RP_CLIENT_SECRET": "foo-client-secret",
+            "OIDC_ROLE_CLAIM_ADMIN": "admin",
+            "OIDC_ROLE_CLAIM_MANAGER": "manager",
+            "OIDC_ROLE_CLAIM_REVIEWER": "reviewer",
+            "OIDC_ROLE_CLAIM_READER": "reader",
         },
         "BAR": {
             "OIDC_OP_AUTHORIZATION_ENDPOINT": "",
@@ -144,5 +160,9 @@ def test_get_oidc_secondary_providers_capitalizes_provider_names(
             },
             "OIDC_RP_CLIENT_ID": "bar-client-id",
             "OIDC_RP_CLIENT_SECRET": "bar-client-secret",
+            "OIDC_ROLE_CLAIM_ADMIN": "admin",
+            "OIDC_ROLE_CLAIM_MANAGER": "manager",
+            "OIDC_ROLE_CLAIM_REVIEWER": "reviewer",
+            "OIDC_ROLE_CLAIM_READER": "reader",
         },
     }

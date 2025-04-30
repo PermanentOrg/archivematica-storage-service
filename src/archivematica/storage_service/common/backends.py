@@ -54,13 +54,6 @@ class CustomOIDCBackend(OIDCAuthenticationBackend):
             settings, "OIDC_ROLE_CLAIM_READER", "reader"
         )
 
-        self.USER_ROLE_TO_ROLE_CLAIM_MAP = {
-            roles.USER_ROLE_ADMIN: self.OIDC_ROLE_CLAIM_ADMIN,
-            roles.USER_ROLE_MANAGER: self.OIDC_ROLE_CLAIM_MANAGER,
-            roles.USER_ROLE_REVIEWER: self.OIDC_ROLE_CLAIM_REVIEWER,
-            roles.USER_ROLE_READER: self.OIDC_ROLE_CLAIM_READER,
-        }
-
     def get_settings(self, attr: str, *args: Any) -> Any:
         if attr in [
             "OIDC_RP_CLIENT_ID",
@@ -73,6 +66,10 @@ class CustomOIDCBackend(OIDCAuthenticationBackend):
             "OIDC_OP_SET_ROLES_FROM_CLAIMS",
             "OIDC_OP_ROLE_CLAIM_PATH",
             "OIDC_ACCESS_ATTRIBUTE_MAP",
+            "OIDC_ROLE_CLAIM_ADMIN",
+            "OIDC_ROLE_CLAIM_MANAGER",
+            "OIDC_ROLE_CLAIM_REVIEWER",
+            "OIDC_ROLE_CLAIM_READER",
         ]:
             # Retrieve the request object stored in the instance.
             request = getattr(self, "request", None)
@@ -106,6 +103,10 @@ class CustomOIDCBackend(OIDCAuthenticationBackend):
         )
         self.OIDC_OP_ROLE_CLAIM_PATH = self.get_settings("OIDC_OP_ROLE_CLAIM_PATH")
         self.OIDC_ACCESS_ATTRIBUTE_MAP = self.get_settings("OIDC_ACCESS_ATTRIBUTE_MAP")
+        self.OIDC_ROLE_CLAIM_ADMIN = self.get_settings("OIDC_ROLE_CLAIM_ADMIN")
+        self.OIDC_ROLE_CLAIM_MANAGER = self.get_settings("OIDC_ROLE_CLAIM_MANAGER")
+        self.OIDC_ROLE_CLAIM_REVIEWER = self.get_settings("OIDC_ROLE_CLAIM_REVIEWER")
+        self.OIDC_ROLE_CLAIM_READER = self.get_settings("OIDC_ROLE_CLAIM_READER")
 
         return super().authenticate(request, **kwargs)
 
@@ -189,9 +190,16 @@ class CustomOIDCBackend(OIDCAuthenticationBackend):
         if not isinstance(role_claims, list):
             return None
 
+        USER_ROLE_TO_ROLE_CLAIM_MAP = {
+            roles.USER_ROLE_ADMIN: self.OIDC_ROLE_CLAIM_ADMIN,
+            roles.USER_ROLE_MANAGER: self.OIDC_ROLE_CLAIM_MANAGER,
+            roles.USER_ROLE_REVIEWER: self.OIDC_ROLE_CLAIM_REVIEWER,
+            roles.USER_ROLE_READER: self.OIDC_ROLE_CLAIM_READER,
+        }
+
         # Iterate over ordered roles.USER_ROLES and return the first match.
         for role_key, _ in roles.USER_ROLES:
-            token_claim = self.USER_ROLE_TO_ROLE_CLAIM_MAP.get(role_key)
+            token_claim = USER_ROLE_TO_ROLE_CLAIM_MAP.get(role_key)
             if token_claim in role_claims:
                 return role_key
 
