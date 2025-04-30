@@ -595,6 +595,26 @@ If `SS_OIDC_AUTHENTICATION` is false, none of the other ones are used.
   - **Type:** `string`
   - **Default:** `{"given_name": "first_name", "family_name": "last_name"}`
 
+- **`OIDC_ROLE_CLAIM_ADMIN`**:
+  - **Description:** The OIDC role claim value which maps to the Admin role.
+  - **Type:** `string`
+  - **Default:** `admin`
+
+- **`OIDC_ROLE_CLAIM_MANAGER`**:
+  - **Description:** The OIDC role claim value which maps to the Manager role.
+  - **Type:** `string`
+  - **Default:** `manager`
+
+- **`OIDC_ROLE_CLAIM_REVIEWER`**:
+  - **Description:** The OIDC role claim value which maps to the Reviewer role.
+  - **Type:** `string`
+  - **Default:** `reviewer`
+
+- **`OIDC_ROLE_CLAIM_READER`**:
+  - **Description:** The OIDC role claim value which maps to the Reader role.
+  - **Type:** `string`
+  - **Default:** `reader`
+
 - **`OIDC_RP_SIGN_ALGO`**:
   - **Description:** Algorithm used by the ID provider to sign ID tokens
   - **Type:** `string`

@@ -42,8 +42,24 @@ class CustomOIDCBackend(OIDCAuthenticationBackend):
             settings, "OIDC_ACCESS_ATTRIBUTE_MAP", settings.DEFAULT_OIDC_CLAIMS
         )
 
-        # Extract valid role keys from USER_ROLES.
-        self.VALID_ROLES = {role[0] for role in roles.USER_ROLES}
+        # Valid role claim name which may be extracted from OIDC token.
+        self.OIDC_ROLE_CLAIM_ADMIN = getattr(settings, "OIDC_ROLE_CLAIM_ADMIN", "admin")
+        self.OIDC_ROLE_CLAIM_MANAGER = getattr(
+            settings, "OIDC_ROLE_CLAIM_MANAGER", "manager"
+        )
+        self.OIDC_ROLE_CLAIM_REVIEWER = getattr(
+            settings, "OIDC_ROLE_CLAIM_REVIEWER", "reviewer"
+        )
+        self.OIDC_ROLE_CLAIM_READER = getattr(
+            settings, "OIDC_ROLE_CLAIM_READER", "reader"
+        )
+
+        self.USER_ROLE_TO_ROLE_CLAIM_MAP = {
+            roles.USER_ROLE_ADMIN: self.OIDC_ROLE_CLAIM_ADMIN,
+            roles.USER_ROLE_MANAGER: self.OIDC_ROLE_CLAIM_MANAGER,
+            roles.USER_ROLE_REVIEWER: self.OIDC_ROLE_CLAIM_REVIEWER,
+            roles.USER_ROLE_READER: self.OIDC_ROLE_CLAIM_READER,
+        }
 
     def get_settings(self, attr: str, *args: Any) -> Any:
         if attr in [
@@ -169,12 +185,14 @@ class CustomOIDCBackend(OIDCAuthenticationBackend):
         if isinstance(role_claims, str):
             role_claims = [role_claims]
 
+        # Neither a string nor a list of roles.
         if not isinstance(role_claims, list):
-            return None  # Neither a string nor a list of roles.
+            return None
 
-        # Iterate over ordered USER_ROLES and return the first match.
+        # Iterate over ordered roles.USER_ROLES and return the first match.
         for role_key, _ in roles.USER_ROLES:
-            if role_key in role_claims:
-                return roles.promoted_role(role_key)
+            token_claim = self.USER_ROLE_TO_ROLE_CLAIM_MAP.get(role_key)
+            if token_claim in role_claims:
+                return role_key
 
         return None  # No match found.

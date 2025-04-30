@@ -643,6 +643,10 @@ if OIDC_AUTHENTICATION:
     OIDC_OP_ROLE_CLAIM_PATH = environ.get(
         "OIDC_OP_ROLE_CLAIM_PATH", "realm_access.roles"
     )
+    OIDC_ROLE_CLAIM_ADMIN = environ.get("OIDC_ROLE_CLAIM_ADMIN", "admin")
+    OIDC_ROLE_CLAIM_MANAGER = environ.get("OIDC_ROLE_CLAIM_MANAGER", "manager")
+    OIDC_ROLE_CLAIM_REVIEWER = environ.get("OIDC_ROLE_CLAIM_REVIEWER", "reviewer")
+    OIDC_ROLE_CLAIM_READER = environ.get("OIDC_ROLE_CLAIM_READER", "reader")
 
     DEFAULT_OIDC_CLAIMS = {"given_name": "first_name", "family_name": "last_name"}
 
