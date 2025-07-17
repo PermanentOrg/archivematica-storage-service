@@ -122,15 +122,31 @@ class RClone(models.Model):
         """Ensure that the S3 bucket or other container exists by creating it if it doesn't.
         If the creation attempt fails, we raise a StorageException.
         """
-        LOGGER.debug("Create container '%s' if it doesn't exist", self.container)
-        prefixed_container_name = f"{self.remote_prefix}{self.container}"
-        create_container_cmd = ["mkdir", prefixed_container_name]
+        LOGGER.debug("Test that container '%s' exists", self.container)
+        remote_name = f"{self.remote_prefix}"
+        cmd = ["lsf", "--dirs-only", remote_name]
         try:
-            self._execute_rclone_subcommand(create_container_cmd)
+            containers_list = self._execute_rclone_subcommand(cmd).split("\n")
+            container_exists = False
+            for container in containers_list:
+                if container.rstrip("/") == self.container:
+                    container_exists = True
+            if not container_exists:
+                raise StorageException(
+                    "rclone container matching %s not found", self.container
+                )
         except StorageException:
-            err_msg = f"Unable to find or create container {prefixed_container_name}"
-            LOGGER.error(err_msg)
-            raise StorageException(err_msg)
+            LOGGER.info("Creating container '%s'", self.container)
+            prefixed_container_name = f"{self.remote_prefix}{self.container}"
+            create_container_cmd = ["mkdir", prefixed_container_name]
+            try:
+                self._execute_rclone_subcommand(create_container_cmd)
+            except StorageException:
+                err_msg = (
+                    f"Unable to find or create container {prefixed_container_name}"
+                )
+                LOGGER.error(err_msg)
+                raise StorageException(err_msg)
 
     def browse(self, path):
         """Browse RClone location."""
