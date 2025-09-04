@@ -160,6 +160,7 @@ def test_rclone_ensure_container_exists(
     args, _ = subprocess.Popen.call_args
     assert args[0] == ["rclone", "mkdir", "testremote:testcontainer"]
 
+
 @pytest.mark.parametrize(
     "listremotes_return, expected_return, subprocess_return_code, raises_storage_exception",
     [

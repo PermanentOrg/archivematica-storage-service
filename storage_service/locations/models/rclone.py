@@ -128,9 +128,7 @@ class RClone(models.Model):
         try:
             self._execute_rclone_subcommand(create_container_cmd)
         except StorageException:
-            err_msg = (
-                f"Unable to find or create container {prefixed_container_name}"
-            )
+            err_msg = f"Unable to find or create container {prefixed_container_name}"
             LOGGER.error(err_msg)
             raise StorageException(err_msg)
 
