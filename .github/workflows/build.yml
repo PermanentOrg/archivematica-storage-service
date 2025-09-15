@@ -3,8 +3,23 @@ on:
     outputs:
       ARCHIVEMATICA_STORAGE_SERVICE_IMAGE_TAG:
         value: ${{ jobs.generate_image_tags.outputs.ARCHIVEMATICA_STORAGE_SERVICE_IMAGE_TAG}}
+    inputs:
+      target_repo:
+        type: string
+        required: false
+        default: PermanentOrg/archivematica-storage-service
   workflow_dispatch:
+    inputs:
+      target_repo:
+        type: string
+        required: false
+        default: PermanentOrg/archivematica-storage-service
   push:
+    inputs:
+      target_repo:
+        type: string
+        required: false
+        default: PermanentOrg/archivematica-storage-service
     branches:
       - main
 jobs:
@@ -36,6 +51,8 @@ jobs:
       ARCHIVEMATICA_STORAGE_SERVICE_IMAGE_TAG: ${{ needs.generate_image_tags.outputs.ARCHIVEMATICA_STORAGE_SERVICE_IMAGE_TAG}}
     steps:
       - uses: actions/checkout@v5
+        with:
+          repository: ${{ inputs.target_repo }}
       - run: docker build -t $ARCHIVEMATICA_STORAGE_SERVICE_IMAGE_TAG --target archivematica-storage-service -f Dockerfile .
       - name: AWS Login
         run: aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin 364159549467.dkr.ecr.$AWS_REGION.amazonaws.com
