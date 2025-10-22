@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 
 import boto3
 import botocore
+from boto3.s3.transfer import TransferConfig
 from common import utils
 from django.conf import settings
 from django.db import models
@@ -216,7 +217,11 @@ class S3(models.Model):
             dest_file = objectSummary.key.replace(src_path, dest_path, 1)
             self.space.create_local_directory(dest_file)
             if not os.path.isdir(dest_file):
-                bucket.download_file(objectSummary.key, dest_file)
+                bucket.download_file(
+                    objectSummary.key,
+                    dest_file,
+                    Config=TransferConfig(use_threads=False),
+                )
 
     def move_from_storage_service(self, src_path, dest_path, package=None):
         self._ensure_bucket_exists()
