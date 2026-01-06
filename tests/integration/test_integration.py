@@ -16,21 +16,19 @@ import shutil
 import tarfile
 import uuid
 from pathlib import Path
-from typing import Dict
-from typing import List
-from typing import Tuple
 from typing import Union
 
 import pytest
-from common import utils
 from django.http import HttpResponse
 from django.test import Client as TestClient
 from django.urls import reverse
-from locations.models import Event
-from locations.models import Location
-from locations.models import Package
-from locations.models import Space
 from metsrw.plugins import premisrw
+
+from archivematica.storage_service.common import utils
+from archivematica.storage_service.locations.models import Event
+from archivematica.storage_service.locations.models import Location
+from archivematica.storage_service.locations.models import Package
+from archivematica.storage_service.locations.models import Space
 
 if "RUN_INTEGRATION_TESTS" not in os.environ:
     pytest.skip("Skipping integration tests", allow_module_level=True)
@@ -38,25 +36,25 @@ if "RUN_INTEGRATION_TESTS" not in os.environ:
 TagName = str
 Attribute = str
 Value = str
-Element = Tuple[Attribute, Value]
+Element = tuple[Attribute, Value]
 
-PremisAgent = Tuple[
+PremisAgent = tuple[
     TagName,
-    Dict[str, str],
-    Tuple[TagName, Element, Element],
+    dict[str, str],
+    tuple[TagName, Element, Element],
     Element,
     Element,
 ]
 
-PremisEvent = Tuple[
+PremisEvent = tuple[
     TagName,
-    Dict[str, str],
-    Tuple[TagName, Element, Element],
+    dict[str, str],
+    tuple[TagName, Element, Element],
     Element,
     Element,
     Element,
-    Tuple[TagName, Tuple[TagName, Element]],
-    Tuple[TagName, Element, Element],
+    tuple[TagName, tuple[TagName, Element]],
+    tuple[TagName, Element, Element],
 ]
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -75,26 +73,26 @@ class Client:
     def __init__(self, admin_client: TestClient) -> None:
         self.admin_client = admin_client
 
-    def add_space(self, data: Dict[str, Union[str, bool]]) -> HttpResponse:
+    def add_space(self, data: dict[str, Union[str, bool]]) -> HttpResponse:
         return self.admin_client.post(
             "/api/v2/space/", json.dumps(data), content_type="application/json"
         )
 
-    def add_pipeline(self, data: Dict[str, Union[str, bool]]) -> HttpResponse:
+    def add_pipeline(self, data: dict[str, Union[str, bool]]) -> HttpResponse:
         return self.admin_client.post(
             "/api/v2/pipeline/", json.dumps(data), content_type="application/json"
         )
 
-    def get_pipelines(self, data: Dict[str, str]) -> HttpResponse:
+    def get_pipelines(self, data: dict[str, str]) -> HttpResponse:
         return self.admin_client.get("/api/v2/pipeline/", data)
 
-    def add_location(self, data: Dict[str, Union[str, List[str]]]) -> HttpResponse:
+    def add_location(self, data: dict[str, Union[str, list[str]]]) -> HttpResponse:
         return self.admin_client.post(
             "/api/v2/location/", json.dumps(data), content_type="application/json"
         )
 
     def set_location(
-        self, location_id: uuid.UUID, data: Dict[str, str]
+        self, location_id: uuid.UUID, data: dict[str, str]
     ) -> HttpResponse:
         return self.admin_client.post(
             f"/api/v2/location/{location_id}/",
@@ -102,13 +100,13 @@ class Client:
             content_type="application/json",
         )
 
-    def get_locations(self, data: Dict[str, str]) -> HttpResponse:
+    def get_locations(self, data: dict[str, str]) -> HttpResponse:
         return self.admin_client.get("/api/v2/location/", data)
 
     def add_file(
         self,
         file_id: uuid.UUID,
-        data: Dict[str, Union[str, int, List[PremisEvent], List[PremisAgent]]],
+        data: dict[str, Union[str, int, list[PremisEvent], list[PremisAgent]]],
     ) -> HttpResponse:
         return self.admin_client.put(
             f"/api/v2/file/{file_id}/",
@@ -126,7 +124,7 @@ class Client:
         return self.admin_client.get(f"/api/v2/file/{file_id}/check_fixity/")
 
     def request_aip_recovery(
-        self, file_id: uuid.UUID, data: Dict[str, Union[str, int]]
+        self, file_id: uuid.UUID, data: dict[str, Union[str, int]]
     ) -> HttpResponse:
         return self.admin_client.post(
             f"/api/v2/file/{file_id}/recover_aip/",
@@ -183,7 +181,7 @@ def startup(working_directory_path: Path) -> None:
     From the list above, CURRENTLY_PROCESSING is missing but that's later added
     when a pipeline is registered.
     """
-    from common.startup import startup
+    from archivematica.storage_service.common.startup import startup
 
     startup(working_directory_path, start_async=False)  # TODO: get rid of this!
 
@@ -205,11 +203,11 @@ class StorageScenario:
     PIPELINE_UUID = uuid.UUID("00000b87-1655-4b7e-bbf8-344b317da334")
     PACKAGE_UUID = uuid.UUID("5658e603-277b-4292-9b58-20bf261c8f88")
 
-    SPACES: Dict[str, Dict[str, Union[str, bool]]] = {
+    SPACES: dict[str, dict[str, Union[str, bool]]] = {
         Space.S3: {
             "access_protocol": Space.S3,
             "path": "",
-            "staging_path": "/var/archivematica/sharedDirectory/tmp/rp_staging_path",
+            "staging_path": "/var/archivematica/sharedDirectory/tmp/s3_staging_path",
             "endpoint_url": "http://minio:9000",
             "access_key_id": "minio",
             "secret_access_key": "minio123",
@@ -219,24 +217,36 @@ class StorageScenario:
         Space.RCLONE: {
             "access_protocol": Space.RCLONE,
             "path": "",
-            "staging_path": "/var/archivematica/sharedDirectory/tmp/rp_staging_path",
+            "staging_path": "/var/archivematica/sharedDirectory/tmp/rclone_staging_path",
             "remote_name": "mys3",
             "container": "mybucket",
         },
         Space.NFS: {
             "access_protocol": Space.NFS,
             "path": "/var/archivematica/sharedDirectory/tmp/nfs_mount",
-            "staging_path": "/var/archivematica/sharedDirectory/tmp/rp_staging_path",
+            "staging_path": "/var/archivematica/sharedDirectory/tmp/nfs_staging_path",
             "manually_mounted": False,
             "remote_name": "nfs-server",
             "remote_path": "???",
             "version": "nfs4",
         },
+        Space.LOCAL_FILESYSTEM: {
+            "access_protocol": Space.LOCAL_FILESYSTEM,
+            "path": "/var/archivematica/sharedDirectory/tmp/local_fs",
+            "staging_path": "/var/archivematica/sharedDirectory/tmp/local_fs_staging_path",
+        },
     }
 
-    def __init__(self, src: str, dst: str, pkg: Path, compressed: bool) -> None:
-        self.src = src
-        self.dst = dst
+    def __init__(
+        self,
+        *,
+        storage_protocol: str,
+        replication_protocol: str = "",
+        pkg: Path,
+        compressed: bool,
+    ) -> None:
+        self.storage_protocol = storage_protocol
+        self.replication_protocol = replication_protocol
         self.pkg = pkg
         self.pkg_name = (
             f"foobar-{self.PACKAGE_UUID}{''.join(pkg.suffixes) if compressed else ''}"
@@ -250,7 +260,8 @@ class StorageScenario:
         )
         self.register_pipeline()
         self.register_aip_storage_location()
-        self.register_aip_storage_replicator()
+        if self.replication_protocol:
+            self.register_aip_storage_replicator()
         self.copy_fixture(self.shared_directory_path)
 
     def register_pipeline(self) -> None:
@@ -268,8 +279,8 @@ class StorageScenario:
         assert resp.status_code == 201
 
     def _adjust_space_data(
-        self, data: Dict[str, Union[str, bool]]
-    ) -> Dict[str, Union[str, bool]]:
+        self, data: dict[str, Union[str, bool]]
+    ) -> dict[str, Union[str, bool]]:
         for attr in ["path", "staging_path"]:
             if (
                 (value := data.get(attr) is not None)
@@ -286,7 +297,9 @@ class StorageScenario:
         """Register AIP Storage location."""
 
         # Add space.
-        resp = self.client.add_space(self._adjust_space_data(self.SPACES[self.src]))
+        resp = self.client.add_space(
+            self._adjust_space_data(self.SPACES[self.storage_protocol])
+        )
         assert resp.status_code == 201
         space = json.loads(resp.content)
 
@@ -356,7 +369,9 @@ class StorageScenario:
         """Register AIP Storage replicator."""
 
         # 1. Add space.
-        resp = self.client.add_space(self._adjust_space_data(self.SPACES[self.dst]))
+        resp = self.client.add_space(
+            self._adjust_space_data(self.SPACES[self.replication_protocol])
+        )
         assert resp.status_code == 201
         space = json.loads(resp.content)
 
@@ -440,19 +455,26 @@ class StorageScenario:
         assert get_size(aip_path) > 1
 
     def assert_stored(self) -> None:
-        # We have two packages, the original and a replica.
+        if self.replication_protocol:
+            # We have two packages, the original and a replica.
+            expected_files_count = 2
+        else:
+            expected_files_count = 1
+
         resp = self.client.get_files()
         files = json.loads(resp.content)
-        assert files["meta"]["total_count"] == 2
-        assert len(files["objects"]) == 2
+        assert files["meta"]["total_count"] == expected_files_count
+        assert len(files["objects"]) == expected_files_count
 
         # Fixity checks.
         resp = self.client.check_fixity(files["objects"][0]["uuid"])
         assert resp.status_code == 200
         assert json.loads(resp.content)["success"] is True
-        resp = self.client.check_fixity(files["objects"][1]["uuid"])
-        assert resp.status_code == 200
-        assert json.loads(resp.content)["success"] is True
+
+        if self.replication_protocol:
+            resp = self.client.check_fixity(files["objects"][1]["uuid"])
+            assert resp.status_code == 200
+            assert json.loads(resp.content)["success"] is True
 
         # We have a pointer file (not for uncompressed AIPs yet).
         if self.compressed:
@@ -464,41 +486,122 @@ class StorageScenario:
     "storage_scenario",
     [
         StorageScenario(
-            src=Space.NFS, dst=Space.S3, pkg=COMPRESSED_PACKAGE, compressed=True
+            storage_protocol=Space.NFS,
+            replication_protocol=Space.S3,
+            pkg=COMPRESSED_PACKAGE,
+            compressed=True,
         ),
         StorageScenario(
-            src=Space.NFS, dst=Space.S3, pkg=UNCOMPRESSED_PACKAGE, compressed=False
+            storage_protocol=Space.NFS,
+            replication_protocol=Space.S3,
+            pkg=UNCOMPRESSED_PACKAGE,
+            compressed=False,
         ),
         StorageScenario(
-            src=Space.NFS, dst=Space.RCLONE, pkg=COMPRESSED_PACKAGE, compressed=True
+            storage_protocol=Space.NFS,
+            replication_protocol=Space.RCLONE,
+            pkg=COMPRESSED_PACKAGE,
+            compressed=True,
         ),
         StorageScenario(
-            src=Space.NFS, dst=Space.RCLONE, pkg=UNCOMPRESSED_PACKAGE, compressed=False
+            storage_protocol=Space.NFS,
+            replication_protocol=Space.RCLONE,
+            pkg=UNCOMPRESSED_PACKAGE,
+            compressed=False,
         ),
         StorageScenario(
-            src=Space.S3, dst=Space.NFS, pkg=COMPRESSED_PACKAGE, compressed=True
+            storage_protocol=Space.S3,
+            replication_protocol=Space.NFS,
+            pkg=COMPRESSED_PACKAGE,
+            compressed=True,
         ),
         StorageScenario(
-            src=Space.S3, dst=Space.NFS, pkg=UNCOMPRESSED_PACKAGE, compressed=False
+            storage_protocol=Space.S3,
+            replication_protocol=Space.NFS,
+            pkg=UNCOMPRESSED_PACKAGE,
+            compressed=False,
         ),
         StorageScenario(
-            src=Space.RCLONE, dst=Space.NFS, pkg=COMPRESSED_PACKAGE, compressed=True
+            storage_protocol=Space.RCLONE,
+            replication_protocol=Space.NFS,
+            pkg=COMPRESSED_PACKAGE,
+            compressed=True,
         ),
         StorageScenario(
-            src=Space.RCLONE, dst=Space.NFS, pkg=UNCOMPRESSED_PACKAGE, compressed=False
+            storage_protocol=Space.RCLONE,
+            replication_protocol=Space.NFS,
+            pkg=UNCOMPRESSED_PACKAGE,
+            compressed=False,
         ),
         StorageScenario(
-            src=Space.S3, dst=Space.S3, pkg=COMPRESSED_PACKAGE, compressed=True
+            storage_protocol=Space.S3,
+            replication_protocol=Space.S3,
+            pkg=COMPRESSED_PACKAGE,
+            compressed=True,
         ),
         StorageScenario(
-            src=Space.S3, dst=Space.S3, pkg=UNCOMPRESSED_PACKAGE, compressed=False
+            storage_protocol=Space.S3,
+            replication_protocol=Space.S3,
+            pkg=UNCOMPRESSED_PACKAGE,
+            compressed=False,
         ),
         StorageScenario(
-            src=Space.RCLONE, dst=Space.RCLONE, pkg=COMPRESSED_PACKAGE, compressed=True
+            storage_protocol=Space.RCLONE,
+            replication_protocol=Space.RCLONE,
+            pkg=COMPRESSED_PACKAGE,
+            compressed=True,
         ),
         StorageScenario(
-            src=Space.RCLONE,
-            dst=Space.RCLONE,
+            storage_protocol=Space.RCLONE,
+            replication_protocol=Space.RCLONE,
+            pkg=UNCOMPRESSED_PACKAGE,
+            compressed=False,
+        ),
+        StorageScenario(
+            storage_protocol=Space.LOCAL_FILESYSTEM,
+            replication_protocol=Space.S3,
+            pkg=COMPRESSED_PACKAGE,
+            compressed=True,
+        ),
+        StorageScenario(
+            storage_protocol=Space.LOCAL_FILESYSTEM,
+            replication_protocol=Space.S3,
+            pkg=UNCOMPRESSED_PACKAGE,
+            compressed=False,
+        ),
+        StorageScenario(
+            storage_protocol=Space.LOCAL_FILESYSTEM,
+            replication_protocol=Space.RCLONE,
+            pkg=COMPRESSED_PACKAGE,
+            compressed=True,
+        ),
+        StorageScenario(
+            storage_protocol=Space.LOCAL_FILESYSTEM,
+            replication_protocol=Space.RCLONE,
+            pkg=UNCOMPRESSED_PACKAGE,
+            compressed=False,
+        ),
+        StorageScenario(
+            storage_protocol=Space.S3,
+            replication_protocol=Space.LOCAL_FILESYSTEM,
+            pkg=COMPRESSED_PACKAGE,
+            compressed=True,
+        ),
+        StorageScenario(
+            storage_protocol=Space.S3,
+            replication_protocol=Space.LOCAL_FILESYSTEM,
+            pkg=UNCOMPRESSED_PACKAGE,
+            compressed=False,
+        ),
+        StorageScenario(
+            storage_protocol=Space.RCLONE,
+            replication_protocol=Space.LOCAL_FILESYSTEM,
+            pkg=COMPRESSED_PACKAGE,
+            compressed=True,
+        ),
+        StorageScenario(
+            storage_protocol=Space.RCLONE,
+            replication_protocol=Space.LOCAL_FILESYSTEM,
             pkg=UNCOMPRESSED_PACKAGE,
             compressed=False,
         ),
@@ -516,6 +619,14 @@ class StorageScenario:
         "s3_to_s3_uncompressed",
         "rclone_to_rclone_compressed",
         "rclone_to_rclone_uncompressed",
+        "local_fs_to_s3_compressed",
+        "local_fs_to_s3_uncompressed",
+        "local_fs_to_rclone_compressed",
+        "local_fs_to_rclone_uncompressed",
+        "s3_to_local_fs_compressed",
+        "s3_to_local_fs_uncompressed",
+        "rclone_to_local_fs_compressed",
+        "rclone_to_local_fs_uncompressed",
     ],
 )
 @pytest.mark.django_db
@@ -563,14 +674,14 @@ class AIPRecoveryScenario(StorageScenario):
 
         self.copy_fixture(aip_recovery_location_path)
 
-    def request_aip_recovery(self, data: Dict[str, Union[str, int]]) -> HttpResponse:
+    def request_aip_recovery(self, data: dict[str, Union[str, int]]) -> HttpResponse:
         return self.client.request_aip_recovery(self.PACKAGE_UUID, data)
 
     def approve_aip_recovery_request(self, event_id: int) -> HttpResponse:
         return self.client.approve_aip_recovery_request(event_id)
 
     def recover_aip(self) -> None:
-        data: Dict[str, Union[str, int]] = {
+        data: dict[str, Union[str, int]] = {
             "event_reason": "Delete please!",
             "pipeline": str(self.PIPELINE_UUID),
             "user_id": 1,
@@ -643,25 +754,25 @@ class AIPRecoveryScenario(StorageScenario):
     [
         (
             AIPRecoveryScenario(
-                src=Space.NFS, dst=Space.NFS, pkg=COMPRESSED_PACKAGE, compressed=True
+                storage_protocol=Space.NFS, pkg=COMPRESSED_PACKAGE, compressed=True
             ),
             False,
         ),
         (
             AIPRecoveryScenario(
-                src=Space.NFS, dst=Space.NFS, pkg=COMPRESSED_PACKAGE, compressed=True
+                storage_protocol=Space.NFS, pkg=COMPRESSED_PACKAGE, compressed=True
             ),
             True,
         ),
         (
             AIPRecoveryScenario(
-                src=Space.NFS, dst=Space.NFS, pkg=UNCOMPRESSED_PACKAGE, compressed=False
+                storage_protocol=Space.NFS, pkg=UNCOMPRESSED_PACKAGE, compressed=False
             ),
             False,
         ),
         (
             AIPRecoveryScenario(
-                src=Space.NFS, dst=Space.NFS, pkg=UNCOMPRESSED_PACKAGE, compressed=False
+                storage_protocol=Space.NFS, pkg=UNCOMPRESSED_PACKAGE, compressed=False
             ),
             True,
         ),
@@ -702,14 +813,14 @@ def test_aip_recovery_handles_recovery_copy_setup_error(
     # copy in the recovery location directory, creates the recovery request
     # and approves it.
     scenario = AIPRecoveryScenario(
-        src=Space.NFS, dst=Space.NFS, pkg=COMPRESSED_PACKAGE, compressed=True
+        storage_protocol=Space.NFS, pkg=COMPRESSED_PACKAGE, compressed=True
     )
     scenario.init(admin_client, working_directory_path)
     scenario.store_aip()
     scenario.assert_stored()
     scenario.corrupt_package()
 
-    data: Dict[str, Union[str, int]] = {
+    data: dict[str, Union[str, int]] = {
         "event_reason": "Delete please!",
         "pipeline": str(scenario.PIPELINE_UUID),
         "user_id": 1,

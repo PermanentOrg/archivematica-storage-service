@@ -4,15 +4,15 @@ import os
 import pathlib
 from collections import namedtuple
 from typing import Any
-from typing import Dict
 from unittest import mock
 
 import pytest
 from django.test import TestCase
-from locations.models import Package
-from locations.models import gpg
-from locations.models import space
 from metsrw.plugins import premisrw
+
+from archivematica.storage_service.locations.models import Package
+from archivematica.storage_service.locations.models import gpg
+from archivematica.storage_service.locations.models import space
 
 FIXTURES_DIR = pathlib.Path(__file__).parent / "fixtures"
 GPG_VERSION = "1.4.16"
@@ -40,7 +40,7 @@ TEST_AGENTS = [
         )
     )
 ]
-BROWSE_FAIL_DICT: Dict[str, Any] = {"directories": [], "entries": [], "properties": {}}
+BROWSE_FAIL_DICT: dict[str, Any] = {"directories": [], "entries": [], "properties": {}}
 
 
 FakeGPGRet = namedtuple("FakeGPGRet", "ok status stderr")
@@ -117,14 +117,17 @@ class MockPackage:
         ),
     ],
 )
-@mock.patch("locations.models.Space.move_rsync")
-@mock.patch("locations.models.Space.create_local_directory")
-@mock.patch("locations.models.gpg._gpg_decrypt")
-@mock.patch("locations.models.gpg._gpg_encrypt")
+@mock.patch("archivematica.storage_service.locations.models.Space.move_rsync")
 @mock.patch(
-    "locations.models.gpg._encr_path2key_fingerprint", return_value=SOME_FINGERPRINT
+    "archivematica.storage_service.locations.models.Space.create_local_directory"
 )
-@mock.patch("locations.models.gpg._get_encrypted_path")
+@mock.patch("archivematica.storage_service.locations.models.gpg._gpg_decrypt")
+@mock.patch("archivematica.storage_service.locations.models.gpg._gpg_encrypt")
+@mock.patch(
+    "archivematica.storage_service.locations.models.gpg._encr_path2key_fingerprint",
+    return_value=SOME_FINGERPRINT,
+)
+@mock.patch("archivematica.storage_service.locations.models.gpg._get_encrypted_path")
 @mock.patch("os.path.exists")
 def test_move_to_storage_service(
     exists,
@@ -217,11 +220,18 @@ def test_move_to_storage_service(
         ),
     ],
 )
-@mock.patch("locations.models.Space.move_rsync")
-@mock.patch("locations.models.Space.create_local_directory")
-@mock.patch("locations.models.gpg.premis.create_encryption_event")
-@mock.patch("locations.models.gpg._gpg_encrypt")
-@mock.patch("locations.models.gpg._get_gpg_version", return_value=GPG_VERSION)
+@mock.patch("archivematica.storage_service.locations.models.Space.move_rsync")
+@mock.patch(
+    "archivematica.storage_service.locations.models.Space.create_local_directory"
+)
+@mock.patch(
+    "archivematica.storage_service.locations.models.gpg.premis.create_encryption_event"
+)
+@mock.patch("archivematica.storage_service.locations.models.gpg._gpg_encrypt")
+@mock.patch(
+    "archivematica.storage_service.locations.models.gpg._get_gpg_version",
+    return_value=GPG_VERSION,
+)
 def test_move_from_storage_service(
     _get_gpg_version,
     _gpg_encrypt,
@@ -287,14 +297,15 @@ def test_move_from_storage_service(
         BrowseCase(path="/a/b/c/", encrpath="/a/b/c", existsafter=False, expect="fail"),
     ],
 )
-@mock.patch("locations.models.space.path2browse_dict")
+@mock.patch("archivematica.storage_service.locations.models.space.path2browse_dict")
 @mock.patch("os.path.exists")
 @mock.patch(
-    "locations.models.gpg._encr_path2key_fingerprint", return_value=SOME_FINGERPRINT
+    "archivematica.storage_service.locations.models.gpg._encr_path2key_fingerprint",
+    return_value=SOME_FINGERPRINT,
 )
-@mock.patch("locations.models.gpg._gpg_encrypt")
-@mock.patch("locations.models.gpg._gpg_decrypt")
-@mock.patch("locations.models.gpg._get_encrypted_path")
+@mock.patch("archivematica.storage_service.locations.models.gpg._gpg_encrypt")
+@mock.patch("archivematica.storage_service.locations.models.gpg._gpg_decrypt")
+@mock.patch("archivematica.storage_service.locations.models.gpg._get_encrypted_path")
 def test_browse(
     _get_encrypted_path,
     _gpg_decrypt,
@@ -360,9 +371,9 @@ def test_browse(
 @mock.patch("os.path.isdir")
 @mock.patch("os.remove")
 @mock.patch("os.rename")
-@mock.patch("common.utils.create_tar")
-@mock.patch("common.utils.extract_tar")
-@mock.patch("common.gpgutils.gpg_encrypt_file")
+@mock.patch("archivematica.storage_service.common.utils.create_tar")
+@mock.patch("archivematica.storage_service.common.utils.extract_tar")
+@mock.patch("archivematica.storage_service.common.gpgutils.gpg_encrypt_file")
 @mock.patch("os.path.isfile")
 def test__gpg_encrypt(
     isfile,
@@ -443,8 +454,8 @@ def test__get_encrypted_path(monkeypatch):
 @mock.patch("os.remove")
 @mock.patch("os.rename")
 @mock.patch("tarfile.is_tarfile", return_value=True)
-@mock.patch("common.gpgutils.gpg_decrypt_file")
-@mock.patch("common.utils.extract_tar")
+@mock.patch("archivematica.storage_service.common.gpgutils.gpg_decrypt_file")
+@mock.patch("archivematica.storage_service.common.utils.extract_tar")
 @mock.patch("os.path.isfile")
 def test__gpg_decrypt(
     isfile,
@@ -507,8 +518,7 @@ class TestGPG(TestCase):
     def test__encr_path2key_fingerprint(self):
         package = Package.objects.get(pk=8)
         exp_curr_path = (
-            "some/relative/path/to/"
-            "images-transfer-abcdabcd-97dd-48e0-8417-03be78359531"
+            "some/relative/path/to/images-transfer-abcdabcd-97dd-48e0-8417-03be78359531"
         )
         assert package.current_path == exp_curr_path
         assert package.encryption_key_fingerprint == EXP_FINGERPRINT

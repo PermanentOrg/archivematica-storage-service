@@ -5,6 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name="archivematica-storage-service"
 description="Django based webapp for managing storage in an Archivematica installation"
+requires-python = ">=3.9"
 authors = [
   {name = "Artefactual Systems Inc.", email = "info@artefactual.com"},
 ]
@@ -16,6 +17,50 @@ license = {file = "LICENSE"}
 dynamic = [
   "version",
 ]
+dependencies = [
+  "bagit",
+  "boto3",
+  "brotli",
+  "Django>=4.2,<5",
+  "django-csp",
+  "django-tastypie",
+  "dj-database-url",
+  "gevent",
+  "gunicorn",
+  "jsonfield",
+  "lxml",
+  "metsrw",
+  "python-gnupg",
+  "python-keystoneclient",
+  "python-swiftclient",
+  "requests",
+  "sword2 @ git+https://github.com/artefactual-labs/python-client-sword2.git@619ee44467dcdb2ab75fab16864ea2e4ded7ffe4",
+  "whitenoise",
+  "agentarchives",
+  "django-shibboleth-remoteuser @ git+https://github.com/artefactual-labs/django-shibboleth-remoteuser.git@f08a7864d6130416c352981ccf318fff0fd5be58",
+  "prometheus_client",
+  "django-prometheus",
+  # LDAP support
+  "python-ldap",
+  "django-auth-ldap",
+  # CAS authentication
+  "django-cas-ng",
+  # Required for OpenID Connect authentication
+  "mozilla-django-oidc",
+]
+
+[project.optional-dependencies]
+dev = [
+  "coverage[toml]",
+  "pip-tools",
+  "playwright",
+  "pytest-cov",
+  "pytest-django",
+  "pytest-playwright",
+  "pytest-randomly",
+  "pytest",
+  "tox",
+]
 
 [project.urls]
 homepage = "https://github.com/artefacutal/archivematica-storage-service"
@@ -24,15 +69,15 @@ repository = "https://github.com/artefacutal/archivematica-storage-service"
 issues = "https://github.com/archivematica/Issues/issues"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include=["storage_service*"]
+where = ["src"]
+include=["archivematica.storage_service*"]
 
 [tool.setuptools.dynamic]
-version = {attr = "storage_service.storage_service.__version__"}
+version = {attr = "archivematica.storage_service.storage_service.__version__"}
 
 [tool.pytest.ini_options]
 addopts = "--reuse-db -p no:cacheprovider"
-DJANGO_SETTINGS_MODULE = "storage_service.settings.test"
+DJANGO_SETTINGS_MODULE = "archivematica.storage_service.storage_service.settings.test"
 norecursedirs = ".tox"
 
 [tool.coverage.run]
@@ -45,7 +90,7 @@ omit = [
     "**/manage.py",
 ]
 source = [
-  "storage_service",
+  "archivematica.storage_service",
 ]
 branch = true
 
@@ -68,32 +113,34 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"{storage_service,tests}/locations/*" = ["PTH"]
-"storage_service/storage_service/settings/*" = [
+"{src/archivematica/storage_service,tests}/locations/*" = ["PTH"]
+"src/archivematica/storage_service/storage_service/settings/*" = [
   "F403",
   "F405",
 ]
-"storage_service/storage_service/settings/base.py" = ["E402"]
+"src/archivematica/storage_service/storage_service/settings/base.py" = ["E402"]
 
 [tool.ruff.lint.isort]
 force-single-line = true
 
 [tool.mypy]
 strict = true
+explicit_package_bases = true
 
 [[tool.mypy.overrides]]
 module = [
-    "administration.*",
-    "common.*",
-    "locations.*",
-    "storage_service.*",
+    "src.archivematica.storage_service.administration.*",
+    "src.archivematica.storage_service.common.*",
+    "src.archivematica.storage_service.locations.*",
+    "src.archivematica.storage_service.storage_service.*",
     "tests.*",
 ]
 ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = [
-    "common.helpers",
+    "src.archivematica.storage_service.common.helpers",
+    "tests.administration.test_users",
     "tests.integration.*",
     "tests.storage_service.test_helpers",
     "tests.storage_service.test_oidc",
@@ -103,17 +150,8 @@ ignore_errors = false
 [tool.tox]
 legacy_tox_ini = """
     [tox]
-    skipsdist = True
-    envlist = linting, py{38,39,310,311,312}, migrations
+    envlist = linting, py, migrations
     skip_missing_interpreters = true
-
-    [gh-actions]
-    python =
-        3.8: py38
-        3.9: py39, migrations
-        3.10: py310
-        3.11: py311
-        3.12: py312
 
     [testenv:linting]
     basepython = python3
@@ -121,14 +159,13 @@ legacy_tox_ini = """
     commands = pre-commit run --all-files --show-diff-on-failure
 
     [testenv]
-    skip_install = true
+    package = editable
     deps = -r {toxinidir}/requirements-dev.txt
     commands =
         py.test {posargs}
     setenv =
         PYTEST_ADDOPTS = {env:PYTEST_ADDOPTS:}
-        PYTHONPATH = ./storage_service
-        DJANGO_SETTINGS_MODULE = storage_service.settings.test
+        DJANGO_SETTINGS_MODULE = archivematica.storage_service.storage_service.settings.test
         DJANGO_SECRET_KEY = 1234
         BOTO_CONFIG = /dev/null
 

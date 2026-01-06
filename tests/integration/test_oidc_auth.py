@@ -1,6 +1,5 @@
 import os
-from typing import Generator
-from typing import Type
+from collections.abc import Generator
 
 import pytest
 from django.contrib.auth.models import Group
@@ -33,7 +32,7 @@ def recreate_user_groups(
 
 
 @pytest.fixture
-def user(django_user_model: Type[User]) -> User:
+def user(django_user_model: type[User]) -> User:
     user = django_user_model.objects.create(
         username="foobar",
         email="foobar@example.com",
@@ -50,7 +49,7 @@ def user(django_user_model: Type[User]) -> User:
 def test_oidc_backend_creates_local_user(
     page: Page,
     live_server: LiveServer,
-    django_user_model: Type[User],
+    django_user_model: type[User],
 ) -> None:
     page.goto(live_server.url)
 
@@ -182,7 +181,7 @@ def test_logging_out_logs_out_user_from_both_systems(
 
 
 @pytest.mark.django_db
-def test_setting_request_parameter_in_local_login_url_redirects_to_secondary_provider(
+def test_setting_request_parameter_in_local_login_url_redirects_to_secondary_provider_reader_role(
     page: Page,
     live_server: LiveServer,
     settings: SettingsWrapper,
@@ -192,7 +191,7 @@ def test_setting_request_parameter_in_local_login_url_redirects_to_secondary_pro
     )
 
     page.get_by_role("link", name="Log in with OpenID Connect").click()
-    page.get_by_label("Username or email").fill("support@example.com")
+    page.get_by_label("Username or email").fill("supportreader@example.com")
     page.get_by_label("Password", exact=True).fill("support")
     page.get_by_role("button", name="Sign In").click()
 
@@ -205,16 +204,16 @@ def test_setting_request_parameter_in_local_login_url_redirects_to_secondary_pro
         i.strip() for i in page.locator("dl").text_content().splitlines() if i.strip()
     ] == [
         "Username",
-        "support@example.com",
+        "supportreader@example.com",
         "Name",
-        "Support User",
+        "SupportReader User",
         "E-mail",
-        "support@example.com",
+        "supportreader@example.com",
     ]
 
 
 @pytest.mark.django_db
-def test_logging_out_logs_out_user_from_secondary_provider(
+def test_logging_out_logs_out_user_from_secondary_provider_reader_role(
     page: Page,
     live_server: LiveServer,
     settings: SettingsWrapper,
@@ -224,7 +223,62 @@ def test_logging_out_logs_out_user_from_secondary_provider(
     )
 
     page.get_by_role("link", name="Log in with OpenID Connect").click()
-    page.get_by_label("Username or email").fill("support@example.com")
+    page.get_by_label("Username or email").fill("supportreader@example.com")
+    page.get_by_label("Password", exact=True).fill("support")
+    page.get_by_role("button", name="Sign In").click()
+
+    assert page.url == f"{live_server.url}/"
+
+    # Logging out redirects the user to the login url.
+    page.get_by_role("link", name="Log out").click()
+    assert page.url == f"{live_server.url}{reverse('login')}?next=/"
+
+    # Logging in through the OIDC provider requires to authenticate again.
+    page.goto(
+        f"{live_server.url}{reverse('login')}?{settings.OIDC_PROVIDER_QUERY_PARAM_NAME}=SECONDARY"
+    )
+    page.get_by_role("link", name="Log in with OpenID Connect").click()
+    assert page.url.startswith(
+        settings.OIDC_PROVIDERS["SECONDARY"]["OIDC_OP_AUTHORIZATION_ENDPOINT"]
+    )
+
+
+@pytest.mark.django_db
+def test_setting_request_parameter_in_local_login_url_redirects_to_secondary_provider_admin_role(
+    page: Page,
+    live_server: LiveServer,
+    settings: SettingsWrapper,
+) -> None:
+    page.goto(
+        f"{live_server.url}{reverse('login')}?{settings.OIDC_PROVIDER_QUERY_PARAM_NAME}=SECONDARY"
+    )
+
+    page.get_by_role("link", name="Log in with OpenID Connect").click()
+    page.get_by_label("Username or email").fill("supportadmin@example.com")
+    page.get_by_label("Password", exact=True).fill("support")
+    page.get_by_role("button", name="Sign In").click()
+
+    assert page.url == f"{live_server.url}/"
+
+    page.get_by_role("link", name="Administration").click()
+
+    page.get_by_role("link", name="Configuration").click()
+
+    assert page.url == f"{live_server.url}{reverse('administration:configuration')}"
+
+
+@pytest.mark.django_db
+def test_logging_out_logs_out_user_from_secondary_provider_admin_role(
+    page: Page,
+    live_server: LiveServer,
+    settings: SettingsWrapper,
+) -> None:
+    page.goto(
+        f"{live_server.url}{reverse('login')}?{settings.OIDC_PROVIDER_QUERY_PARAM_NAME}=SECONDARY"
+    )
+
+    page.get_by_role("link", name="Log in with OpenID Connect").click()
+    page.get_by_label("Username or email").fill("supportadmin@example.com")
     page.get_by_label("Password", exact=True).fill("support")
     page.get_by_role("button", name="Sign In").click()
 
