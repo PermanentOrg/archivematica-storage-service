@@ -16,15 +16,15 @@ on:
 jobs:
   integration:
     name: "Integration ${{ matrix.ubuntu-version }} with ${{ matrix.python-version }}"
-    runs-on: "ubuntu-22.04"
+    runs-on: "ubuntu-24.04"
     strategy:
       fail-fast: false
       matrix:
         ubuntu-version: [
           "22.04",
+          "24.04",
         ]
         python-version: [
-          "3.8",
           "3.9",
           "3.10",
           "3.11",
@@ -87,7 +87,7 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   tox:
     name: "Tox ${{ matrix.toxenv }}"
-    runs-on: "ubuntu-22.04"
+    runs-on: "ubuntu-24.04"
     strategy:
       fail-fast: false
       matrix:

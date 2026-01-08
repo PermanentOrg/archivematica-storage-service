@@ -98,6 +98,42 @@ of these settings or provide values to mandatory fields.
   - **Type:** `string`
   - :red_circle: **Mandatory!**
 
+- **`SESSION_COOKIE_SECURE`**:
+  - **Description:** determines if session cookies should only be sent over
+    HTTPS connections.
+  - **Type:** `boolean`
+  - **Default:** `true`
+
+- **`SESSION_COOKIE_HTTPONLY`**:
+  - **Description:** determines if session cookies should be accessible only
+    via HTTP and not via JavaScript.
+  - **Type:** `boolean`
+  - **Default:** `true`
+
+- **`SESSION_COOKIE_SAMESITE`**:
+  - **Description:** controls when session cookies are sent with cross-site
+    requests. Options are "Strict", "Lax", or "None".
+  - **Type:** `string`
+  - **Default:** `"Strict"`
+
+- **`CSRF_COOKIE_SECURE`**:
+  - **Description:** determines if CSRF cookies should only be sent over HTTPS
+    connections.
+  - **Type:** `boolean`
+  - **Default:** `true`
+
+- **`CSRF_COOKIE_HTTPONLY`**:
+  - **Description:** determines if CSRF cookies should be accessible only via
+    HTTP and not via JavaScript.
+  - **Type:** `boolean`
+  - **Default:** `true`
+
+- **`CSRF_COOKIE_SAMESITE`**:
+  - **Description:** controls when CSRF cookies are sent with cross-site
+    requests. Options are "Strict", "Lax", or "None".
+  - **Type:** `string`
+  - **Default:** `"Strict "`
+
 - **`SS_AUTH_PASSWORD_MINIMUM_LENGTH`**:
   - **Description:** sets minimum length for user passwords.
   - **Type:** `integer`
@@ -298,9 +334,11 @@ This is the current list of strings supported:
   - **Default:** `auto`
 
 - **`SS_GUNICORN_CHDIR`**:
-  - **Description:** directory to load apps from. See [CHDIR].
+  - **Description:** directory to load apps from. See [CHDIR]. If this is
+    empty, Archivematica will load apps from the top level directory of the
+    `archivematica.storage_service` package.
   - **Type:** `string`
-  - **Default:** `/usr/lib/archivematica/storage-service`
+  - **Default:** `""`
 
 - **`SS_GUNICORN_ACCESSLOG`**:
   - **Description:** location to write access log to. See [ACCESSLOG].
@@ -543,6 +581,17 @@ If `SS_OIDC_AUTHENTICATION` is false, none of the other ones are used.
   - **Type:** `boolean`
   - **Default:** `true`
 
+- **`SS_OIDC_USE_SESSION_REFRESH_MIDDLEWARE`**:
+  - **Description:** Allows existing sessions to be refreshed when OIDC tokens expire
+  - **Type:** `boolean`
+  - **Default:** `false`
+
+- **`SS_OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS`**:
+  - **Description:** Time in seconds before reauthentication is required to
+    refresh the ID token. Should align with the token lifetime set by your OIDC Provider.
+  - **Type:** `integer`
+  - **Default:** `900`
+
 - **`OIDC_RP_CLIENT_ID`**:
   - **Description:** OIDC client ID
   - **Type:** `string`
@@ -579,10 +628,59 @@ If `SS_OIDC_AUTHENTICATION` is false, none of the other ones are used.
   - **Type:** `string`
   - **Default:** `''`
 
+- **`OIDC_OP_SET_ROLES_FROM_CLAIMS`**:
+  - **Description:** Set user roles from OIDC token claims
+  - **Type:** `boolean`
+  - **Default:** `False`
+
+- **`OIDC_OP_ROLE_CLAIM_PATH`**:
+  - **Description:** Set OIDC token path for extracting role info
+  - **Type:** `string`
+  - **Default:** `'realm_access.roles'`
+
+- **`OIDC_ACCESS_ATTRIBUTE_MAP`**
+  - **Description:** Set OIDC token details to extract. This string should be
+    JSON-decodable.  If `OIDC_OP_SET_ROLES_FROM_CLAIMS` is set to `True` then
+    the entry `"realm_access": "realm_access"` must be included in this setting.
+  - **Type:** `string`
+  - **Default:** `{"given_name": "first_name", "family_name": "last_name"}`
+
+- **`OIDC_ROLE_CLAIM_ADMIN`**:
+  - **Description:** The OIDC role claim value which maps to the Admin role.
+  - **Type:** `string`
+  - **Default:** `admin`
+
+- **`OIDC_ROLE_CLAIM_MANAGER`**:
+  - **Description:** The OIDC role claim value which maps to the Manager role.
+  - **Type:** `string`
+  - **Default:** `manager`
+
+- **`OIDC_ROLE_CLAIM_REVIEWER`**:
+  - **Description:** The OIDC role claim value which maps to the Reviewer role.
+  - **Type:** `string`
+  - **Default:** `reviewer`
+
+- **`OIDC_ROLE_CLAIM_READER`**:
+  - **Description:** The OIDC role claim value which maps to the Reader role.
+  - **Type:** `string`
+  - **Default:** `reader`
+
 - **`OIDC_RP_SIGN_ALGO`**:
   - **Description:** Algorithm used by the ID provider to sign ID tokens
   - **Type:** `string`
   - **Default:** `HS256`
+
+- **`OIDC_USE_PKCE`**:
+  - **Description:** Controls whether the authentication backend uses PKCE
+(Proof Key For Code Exchange) during the authorization code flow.
+  - **Type:** `boolean`
+  - **Default:** `false`
+
+- **`OIDC_CODE_CHALLENGE_METHOD`**:
+  - **Description:** Sets the method used to generate the PKCE code challenge.
+This only has an effect if ``OIDC_USE_PKCE`` is ``True``.
+  - **Type:** `string`
+  - **Default:** `S256`
 
 ### AWS-specific environment variables
 
